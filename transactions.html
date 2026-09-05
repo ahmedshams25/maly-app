@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مالي — سجل العمليات</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+    <div class="aurora"><span></span><span></span><span></span></div>
+
+    <div id="authGate" class="d-flex flex-column gap-3">
+        <div class="spinner-border" role="status"></div>
+    </div>
+
+    <div id="appScreen" class="container py-4 hidden">
+        <header class="app-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h3 class="fw-bold mb-0">سجل العمليات</h3>
+                    <small id="userEmail" class="opacity-75"></small>
+                </div>
+                <div class="d-flex gap-2 align-items-center">
+                    <div id="themeToggle" title="تبديل الوضع">
+                        <i class="bi bi-moon-stars-fill fs-5"></i>
+                    </div>
+                    <button id="logoutBtn" class="btn btn-light btn-sm fw-bold px-3">خروج</button>
+                </div>
+            </div>
+            <nav class="app-nav">
+                <a href="dashboard.html"><i class="bi bi-speedometer2"></i> لوحة التحكم</a>
+                <a href="transactions.html" class="active"><i class="bi bi-list-ul"></i> سجل العمليات</a>
+                <a href="budget.html"><i class="bi bi-pie-chart"></i> الميزانية</a>
+                <a href="recurring.html"><i class="bi bi-arrow-repeat"></i> المتكررة</a>
+            </nav>
+        </header>
+
+        <div class="row g-4">
+            <div class="col-lg-12">
+                <div class="card p-3">
+                    <div class="search-wrap">
+                        <div class="search-pill" id="searchPillWrap">
+                            <i class="bi bi-search"></i>
+                            <input type="text" id="searchInput" placeholder="ابحث بالتصنيف، الوصف، أو المبلغ...">
+                            <button type="button" id="searchClear" aria-label="مسح البحث"><i class="bi bi-x-lg"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="filter-chips" id="filterChips">
+                        <div class="chip active" data-filter="all">الكل</div>
+                        <div class="chip" data-filter="today">اليوم</div>
+                        <div class="chip" data-filter="month">هذا الشهر</div>
+                        <div class="chip" data-filter="income">الدخل</div>
+                        <div class="chip" data-filter="expense">المصروفات</div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold mb-0">العمليات <span id="filterTag" class="badge bg-primary ms-2 hidden"></span></h6>
+                        <div class="d-flex gap-2 align-items-center">
+                            <button id="exportCsvBtn" class="btn btn-sm btn-outline-primary rounded-pill" title="تصدير CSV"><i class="bi bi-filetype-csv"></i></button>
+                            <button id="exportPdfBtn" class="btn btn-sm btn-outline-primary rounded-pill" title="تصدير PDF"><i class="bi bi-file-earmark-pdf"></i></button>
+                            <button id="clearFilter" class="btn btn-sm btn-outline-primary rounded-pill hidden">عرض الكل</button>
+                        </div>
+                    </div>
+                    <div id="list" style="max-height: 620px; overflow-y: auto; padding: 5px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- تعديل عملية -->
+    <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content card shadow-lg">
+                <div class="modal-header border-0">
+                    <h5 class="fw-bold">تعديل العملية</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editForm">
+                        <input type="hidden" id="editId">
+                        <div class="mb-3">
+                            <label class="small fw-bold mb-1">المبلغ</label>
+                            <input type="number" id="editAmount" class="form-control" required>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="small fw-bold mb-1">النوع</label>
+                                <select id="editType" class="form-select">
+                                    <option value="expense">مصروف</option>
+                                    <option value="income">دخل</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="small fw-bold mb-1">التصنيف</label>
+                                <div class="d-flex gap-1">
+                                    <select id="editCategory" class="form-select"></select>
+                                    <div class="icon-btn-add" id="addCategoryBtnEdit" title="إضافة تصنيف جديد"><i class="bi bi-plus-lg"></i></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="small fw-bold mb-1">الوصف</label>
+                            <input type="text" id="editDescription" class="form-control">
+                        </div>
+                        <div class="mb-4">
+                            <label class="small fw-bold mb-1">التاريخ</label>
+                            <input type="date" id="editDate" class="form-control" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 py-2">حفظ التغييرات</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- إضافة تصنيف -->
+    <div class="modal fade" id="categoryModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content card shadow-lg">
+                <div class="modal-header border-0">
+                    <h5 class="fw-bold">إضافة تصنيف جديد</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="categoryForm">
+                        <input type="hidden" id="categoryFormType">
+                        <label class="small fw-bold mb-1">اسم التصنيف</label>
+                        <input type="text" id="newCategoryName" class="form-control mb-4" placeholder="مثال: اشتراكات" required>
+                        <button type="submit" class="btn btn-primary w-100 py-2">إضافة</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+    <div id="printArea"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-database-compat.js"></script>
+    <script src="assets/js/core.js"></script>
+    <script src="assets/js/categories.js"></script>
+    <script>
+        let allData = [];
+        let budgets = {};
+        let quickFilter = 'all', chartFilter = null, searchQuery = '';
+        const editModal = new bootstrap.Modal(document.getElementById('editModal'));
+
+        requireAuth(() => {
+            initLogout();
+            initThemeToggle();
+            initCategoryModal();
+            document.getElementById('addCategoryBtnEdit').onclick = () => openCategoryModal(document.getElementById('editType').value);
+
+            loadCategories(() => {});
+
+            applyIncomingFilterFromURL();
+            loadData();
+            loadBudgets();
+            bindFormEvents();
+        });
+
+        function loadBudgets() {
+            db.ref(`users/${currentUser.uid}/budgets`).on('value', snap => { budgets = snap.val() || {}; });
+        }
+
+        // لو جاي من رابط الرسم البياني في الداشبورد (month/type/year في الـ URL)
+        function applyIncomingFilterFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            const month = params.get('month'), type = params.get('type');
+            if (month !== null && type !== null) {
+                chartFilter = { monthIndex: parseInt(month), type: type };
+                document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+                const tag = document.getElementById('filterTag');
+                tag.textContent = `${type === 'income' ? 'دخل' : 'مصاريف'} - ${monthNames[parseInt(month)]}`;
+                tag.classList.remove('hidden');
+                document.getElementById('clearFilter').classList.remove('hidden');
+            }
+        }
+
+        function loadData() {
+            db.ref(`users/${currentUser.uid}/transactions`).on('value', snap => {
+                allData = [];
+                snap.forEach(s => { allData.push({ id: s.key, ...s.val() }); });
+                allData.sort((a, b) => new Date(b.date) - new Date(a.date));
+                renderList(computeVisibleList(allData));
+            });
+        }
+
+        function computeVisibleList(data) {
+            if (chartFilter) {
+                data = data.filter(t => {
+                    const d = new Date(t.date);
+                    return d.getMonth() === chartFilter.monthIndex && t.type === chartFilter.type;
+                });
+            } else if (quickFilter !== 'all') {
+                const now = new Date();
+                if (quickFilter === 'today') {
+                    const todayStr = now.toISOString().split('T')[0];
+                    data = data.filter(t => t.date === todayStr);
+                } else if (quickFilter === 'month') {
+                    data = data.filter(t => {
+                        const d = new Date(t.date);
+                        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+                    });
+                } else if (quickFilter === 'income' || quickFilter === 'expense') {
+                    data = data.filter(t => t.type === quickFilter);
+                }
+            }
+
+            if (searchQuery.trim()) {
+                const q = searchQuery.trim().toLowerCase();
+                data = data.filter(t => {
+                    const cat = (t.category || '').toLowerCase();
+                    const desc = (t.description || '').toLowerCase();
+                    const amt = String(t.amount || '');
+                    return cat.includes(q) || desc.includes(q) || amt.includes(q);
+                });
+            }
+            return data;
+        }
+
+        function renderList(data) {
+            const container = document.getElementById('list');
+            container.innerHTML = data.map(t => `
+                <div class="transaction-item ${t.type}-item">
+                    <div style="flex: 1;">
+                        <b class="d-block">${t.category}</b>
+                        <span class="desc-text">${t.description || 'بدون وصف'}</span>
+                        <small class="text-muted" style="font-size: 0.75rem;">
+                            <i class="bi bi-calendar3 me-1"></i>${t.date}
+                        </small>
+                    </div>
+                    <div class="text-end">
+                        <b class="${t.type === 'income' ? 'text-success' : 'text-danger'} fs-5">${t.amount.toLocaleString()} ج.م</b>
+                        <div class="action-btns mt-2">
+                            <i class="bi bi-pencil-square text-muted me-3 fs-5" style="cursor:pointer" onclick="openEditModal('${t.id}')"></i>
+                            <i class="bi bi-trash text-muted fs-5" style="cursor:pointer" onclick="deleteItem('${t.id}')"></i>
+                        </div>
+                    </div>
+                </div>
+            `).join('') || `<div class="empty-state"><i class="bi bi-inbox"></i>لا توجد عمليات مطابقة</div>`;
+        }
+
+        function openEditModal(id) {
+            const item = allData.find(t => t.id === id);
+            if (!item) return;
+            document.getElementById('editId').value = id;
+            document.getElementById('editAmount').value = item.amount;
+            document.getElementById('editType').value = item.type;
+            document.getElementById('editDescription').value = item.description || '';
+            document.getElementById('editDate').value = item.date;
+            populateCategorySelect(document.getElementById('editCategory'), item.type, item.category);
+            editModal.show();
+        }
+
+        function deleteItem(id) { if (confirm('هل تريد حذف هذه العملية نهائياً؟')) db.ref(`users/${currentUser.uid}/transactions/${id}`).remove(); }
+
+        function bindFormEvents() {
+            document.getElementById('editType').onchange = e => populateCategorySelect(document.getElementById('editCategory'), e.target.value);
+
+            document.getElementById('editForm').onsubmit = e => {
+                e.preventDefault();
+                const id = document.getElementById('editId').value;
+                const updatedData = {
+                    amount: parseFloat(document.getElementById('editAmount').value),
+                    type: document.getElementById('editType').value,
+                    category: document.getElementById('editCategory').value,
+                    description: document.getElementById('editDescription').value,
+                    date: document.getElementById('editDate').value
+                };
+                db.ref(`users/${currentUser.uid}/transactions/${id}`).update(updatedData).then(() => editModal.hide());
+            };
+
+            document.getElementById('clearFilter').onclick = () => {
+                chartFilter = null;
+                document.getElementById('filterTag').classList.add('hidden');
+                document.getElementById('clearFilter').classList.add('hidden');
+                document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.filter === quickFilter));
+                renderList(computeVisibleList(allData));
+            };
+
+            document.getElementById('filterChips').addEventListener('click', e => {
+                const chip = e.target.closest('.chip');
+                if (!chip) return;
+                quickFilter = chip.dataset.filter;
+                chartFilter = null;
+                document.getElementById('filterTag').classList.add('hidden');
+                document.getElementById('clearFilter').classList.add('hidden');
+                document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+                renderList(computeVisibleList(allData));
+            });
+
+            const searchInput = document.getElementById('searchInput');
+            const searchPillWrap = document.getElementById('searchPillWrap');
+            searchInput.addEventListener('input', e => {
+                searchQuery = e.target.value;
+                searchPillWrap.classList.toggle('has-text', searchQuery.length > 0);
+                renderList(computeVisibleList(allData));
+            });
+            document.getElementById('searchClear').addEventListener('click', () => {
+                searchQuery = '';
+                searchInput.value = '';
+                searchPillWrap.classList.remove('has-text');
+                searchInput.focus();
+                renderList(computeVisibleList(allData));
+            });
+
+            document.getElementById('exportCsvBtn').onclick = () => {
+                const data = computeVisibleList(allData);
+                if (!data.length) { showToast('لا توجد بيانات لتصديرها', 'warn'); return; }
+                const header = ['التاريخ', 'النوع', 'التصنيف', 'الوصف', 'المبلغ'];
+                const rows = data.map(t => [t.date, t.type === 'income' ? 'دخل' : 'مصروف', t.category, (t.description || '').replace(/"/g, '""'), t.amount]);
+                let csv = '\uFEFF' + header.join(',') + '\n';
+                csv += rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `مصروفات-${new Date().toISOString().split('T')[0]}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+            };
+
+            document.getElementById('exportPdfBtn').onclick = () => {
+                const data = computeVisibleList(allData);
+                if (!data.length) { showToast('لا توجد بيانات لتصديرها', 'warn'); return; }
+                const totalInc = data.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+                const totalExp = data.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+                const rowsHtml = data.map(t => `
+                    <tr>
+                        <td>${t.date}</td>
+                        <td>${t.type === 'income' ? 'دخل' : 'مصروف'}</td>
+                        <td>${t.category}</td>
+                        <td>${t.description || ''}</td>
+                        <td>${t.amount.toLocaleString()} ج.م</td>
+                    </tr>`).join('');
+                const d = new Date();
+                const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                document.getElementById('printArea').innerHTML = `
+                    <div style="font-family:'Cairo',sans-serif; direction:rtl; color:#1D1D1F;">
+                        <h2 style="margin-bottom:4px;">تقرير المصروفات - مالي</h2>
+                        <p style="color:#666; margin-top:0;">تاريخ الإصدار: ${dateStr}</p>
+                        <p><b>إجمالي الدخل:</b> ${totalInc.toLocaleString()} ج.م &nbsp;&nbsp; <b>إجمالي الصرف:</b> ${totalExp.toLocaleString()} ج.م &nbsp;&nbsp; <b>الصافي:</b> ${(totalInc - totalExp).toLocaleString()} ج.م</p>
+                        <table style="width:100%; border-collapse:collapse; margin-top:12px;" border="1" cellpadding="6">
+                            <thead><tr style="background:#f0f0f0;"><th>التاريخ</th><th>النوع</th><th>التصنيف</th><th>الوصف</th><th>المبلغ</th></tr></thead>
+                            <tbody>${rowsHtml}</tbody>
+                        </table>
+                    </div>`;
+                window.print();
+            };
+        }
+    </script>
+</body>
+</html>
