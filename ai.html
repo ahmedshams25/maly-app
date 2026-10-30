@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مالي — المساعد الذكي</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <style>
+        .chat-box { display: flex; flex-direction: column; gap: 12px; height: calc(100vh - 400px); min-height: 360px; overflow-y: auto; padding: 6px; }
+        .bubble { max-width: 90%; padding: 10px 14px; border-radius: 18px; line-height: 1.8; font-size: .95rem; white-space: pre-wrap; word-break: break-word; }
+        .bubble.user { align-self: flex-start; background: var(--header-grad); color: #fff; border-bottom-right-radius: 6px; }
+        .bubble.ai { align-self: flex-end; background: var(--card-strong); color: var(--text-main); border: 1px solid var(--border); border-bottom-left-radius: 6px; }
+        .bubble.err { border-color: var(--danger); color: var(--danger); }
+        .bubble .file-tag { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,.2); border-radius: 999px; padding: 2px 10px; font-size: .8rem; margin: 0 0 6px 6px; }
+        .typing span { display: inline-block; width: 7px; height: 7px; margin: 0 2px; border-radius: 50%; background: var(--text-muted); animation: blink 1.2s infinite; }
+        .typing span:nth-child(2) { animation-delay: .2s; }
+        .typing span:nth-child(3) { animation-delay: .4s; }
+        @keyframes blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+
+        .saved-card { margin-top: 10px; padding: 10px; border-radius: 14px; background: var(--chip-bg); white-space: normal; }
+        .saved-card .row-item { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px dashed var(--border); font-size: .88rem; }
+        .saved-card .row-item:last-of-type { border-bottom: 0; }
+        .saved-card .cat { font-weight: 700; }
+        .saved-card .desc { color: var(--text-muted); font-size: .8rem; }
+
+        .composer { display: flex; align-items: flex-end; gap: 8px; margin-top: 12px; }
+        .composer textarea { resize: none; max-height: 140px; border-radius: 18px; }
+        .round-btn { width: 44px; height: 44px; flex: 0 0 44px; border-radius: 50%; border: 0; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+        .round-btn.attach { background: var(--chip-bg); color: var(--text-main); }
+        .round-btn.send { background: var(--header-grad); color: #fff; }
+        .round-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+        .file-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .file-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--chip-bg); border-radius: 999px; padding: 4px 6px 4px 12px; font-size: .82rem; max-width: 100%; }
+        .file-chip img { width: 28px; height: 28px; object-fit: cover; border-radius: 50%; }
+        .file-chip .x { cursor: pointer; opacity: .7; }
+        .quick-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .drop-active { outline: 2px dashed var(--primary); outline-offset: -6px; }
+    </style>
+</head>
+<body>
+
+    <div class="aurora"><span></span><span></span><span></span></div>
+
+    <div id="authGate" class="d-flex flex-column gap-3">
+        <div class="spinner-border" role="status"></div>
+    </div>
+
+    <div id="appScreen" class="container py-4 hidden">
+        <header class="app-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h3 class="fw-bold mb-0">المساعد الذكي</h3>
+                    <small id="userEmail" class="opacity-75"></small>
+                </div>
+                <div class="d-flex gap-2 align-items-center">
+                    <div id="themeToggle" title="تبديل الوضع">
+                        <i class="bi bi-moon-stars-fill fs-5"></i>
+                    </div>
+                    <button id="logoutBtn" class="btn btn-light btn-sm fw-bold px-3">خروج</button>
+                </div>
+            </div>
+            <nav class="app-nav">
+                <a href="dashboard.html"><i class="bi bi-speedometer2"></i> لوحة التحكم</a>
+                <a href="transactions.html"><i class="bi bi-list-ul"></i> سجل العمليات</a>
+                <a href="budget.html"><i class="bi bi-pie-chart"></i> الميزانية</a>
+                <a href="recurring.html"><i class="bi bi-arrow-repeat"></i> المتكررة</a>
+                <a href="ai.html" class="active"><i class="bi bi-stars"></i> المساعد الذكي</a>
+            </nav>
+        </header>
+
+        <div class="card p-3" id="dropZone">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="fw-bold mb-0"><i class="bi bi-stars text-primary"></i> اسأل، حلّل، أو ارفع فاتورة</h6>
+                <div class="d-flex gap-2">
+                    <button id="settingsBtn" class="btn btn-sm btn-outline-primary rounded-pill" title="إعدادات المفتاح"><i class="bi bi-key"></i></button>
+                    <button id="clearChatBtn" class="btn btn-sm btn-outline-primary rounded-pill" title="مسح المحادثة"><i class="bi bi-trash"></i></button>
+                </div>
+            </div>
+
+            <div id="settingsPanel" class="alert alert-light border mb-3 hidden">
+                <label class="small fw-bold mb-1">مفتاح Google AI (Gemini API Key)</label>
+                <div class="d-flex gap-2">
+                    <input type="password" id="apiKeyInput" class="form-control" placeholder="AIza..." autocomplete="off">
+                    <button id="saveKeyBtn" class="btn btn-primary">حفظ</button>
+                </div>
+                <small class="text-muted d-block mt-2">المفتاح بيتخزن في متصفحك بس (localStorage) ومش بيتبعت لأي مكان غير Google. يُفضّل تقييده بدومين موقعك من لوحة Google.</small>
+            </div>
+
+            <div id="chatBox" class="chat-box"></div>
+
+            <div class="quick-chips" id="quickChips">
+                <div class="chip" data-q="حلل مصاريفي الشهر ده وقولي أكتر حاجة بصرف عليها">تحليل الشهر</div>
+                <div class="chip" data-q="اديني نصايح عملية أوفر بيها من مصاريفي">نصائح توفير</div>
+                <div class="chip" data-q="صرفت 150 جنيه على غدا النهاردة">تسجيل من نص</div>
+            </div>
+
+            <div class="file-chips" id="fileChips"></div>
+
+            <div class="composer">
+                <button class="round-btn attach" id="attachBtn" title="إرفاق فاتورة أو ملف"><i class="bi bi-paperclip fs-5"></i></button>
+                <input type="file" id="fileInput" class="hidden" multiple accept="image/*,application/pdf,.pdf,.csv,.tsv,.txt,.xlsx,.xls">
+                <textarea id="msgInput" class="form-control" rows="1" placeholder="اكتب سؤالك أو مصروفك، أو ارفع صورة فاتورة / ملف مصروفات..."></textarea>
+                <button class="round-btn send" id="sendBtn" title="إرسال"><i class="bi bi-send-fill"></i></button>
+            </div>
+            <small class="text-muted mt-2">المدعوم: صور (فواتير/إيصالات)، PDF، Excel، CSV، نصوص. العمليات بتتسجل تلقائي في التصنيفات الموجودة عندك، وتقدر تتراجع عنها بعدها.</small>
+        </div>
+    </div>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-database-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="assets/js/core.js"></script>
+    <script src="assets/js/categories.js"></script>
+    <script>
+        /* ================= الإعدادات ================= */
+        const GEMINI_MODEL = 'gemini-3.5-flash-lite';
+        const KEY_STORAGE = 'maly-gemini-key';
+        const MAX_FILES = 5;
+        const MAX_HISTORY = 12;
+
+        let allData = [];
+        let budgets = {};
+        let history = [];        // { role: 'user' | 'model', text }
+        let pendingFiles = [];   // { name, kind, part, preview }
+        let busy = false;
+        let catsReady;
+
+        const $ = id => document.getElementById(id);
+        const chatBox = $('chatBox'), msgInput = $('msgInput'), sendBtn = $('sendBtn');
+
+        requireAuth(() => {
+            initLogout();
+            initThemeToggle();
+            catsReady = loadCategories(() => {});
+
+            db.ref(`users/${currentUser.uid}/transactions`).on('value', snap => {
+                allData = [];
+                snap.forEach(s => { allData.push({ id: s.key, ...s.val() }); });
+                allData.sort((a, b) => new Date(b.date) - new Date(a.date));
+            });
+            db.ref(`users/${currentUser.uid}/budgets`).on('value', snap => { budgets = snap.val() || {}; });
+
+            bindUI();
+            addAiBubble('أهلاً! أقدر أحلّل مصاريفك وأجاوب على أسئلتك، وكمان أسجّل المصروفات من كلامك أو من **صورة فاتورة** أو ملف (PDF / Excel / CSV). ارفع الفاتورة وأنا هضيفها تلقائي على التصنيفات اللي عندك.');
+            if (!getKey()) { $('settingsPanel').classList.remove('hidden'); }
+        });
+
+        /* ================= أدوات ================= */
+        const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const fmt = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+        const getKey = () => (localStorage.getItem(KEY_STORAGE) || '').trim();
+
+        function todayStr() {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+        function scrollDown() { chatBox.scrollTop = chatBox.scrollHeight; }
+
+        function addUserBubble(text, files) {
+            const el = document.createElement('div');
+            el.className = 'bubble user';
+            const tags = files.map(f => `<span class="file-tag"><i class="bi ${f.kind === 'image' ? 'bi-image' : 'bi-file-earmark-text'}"></i>${esc(f.name)}</span>`).join('');
+            el.innerHTML = (tags ? tags + '<br>' : '') + esc(text);
+            chatBox.appendChild(el); scrollDown();
+        }
+        function addAiBubble(text, isErr) {
+            const el = document.createElement('div');
+            el.className = 'bubble ai' + (isErr ? ' err' : '');
+            el.innerHTML = fmt(text);
+            chatBox.appendChild(el); scrollDown();
+            return el;
+        }
+        function addTyping() {
+            const el = document.createElement('div');
+            el.className = 'bubble ai typing';
+            el.innerHTML = '<span></span><span></span><span></span>';
+            chatBox.appendChild(el); scrollDown();
+            return el;
+        }
+
+        /* ================= الملفات ================= */
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const r = new FileReader();
+                r.onload = () => resolve(String(r.result).split(',')[1]);
+                r.onerror = () => reject(new Error('تعذّر قراءة الملف'));
+                r.readAsDataURL(file);
+            });
+        }
+        function imageToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const url = URL.createObjectURL(file);
+                const img = new Image();
+                img.onload = () => {
+                    const max = 1600;
+                    const scale = Math.min(1, max / Math.max(img.width, img.height));
+                    const c = document.createElement('canvas');
+                    c.width = Math.round(img.width * scale);
+                    c.height = Math.round(img.height * scale);
+                    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+                    URL.revokeObjectURL(url);
+                    resolve(c.toDataURL('image/jpeg', 0.85).split(',')[1]);
+                };
+                img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('صيغة الصورة غير مدعومة في المتصفح')); };
+                img.src = url;
+            });
+        }
+
+        async function processFile(file) {
+            const name = file.name || 'ملف';
+            const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
+            if (file.type.startsWith('image/')) {
+                return { name, kind: 'image', preview: URL.createObjectURL(file), part: { inline_data: { mime_type: 'image/jpeg', data: await imageToBase64(file) } } };
+            }
+            if (file.type === 'application/pdf' || ext === 'pdf') {
+                if (file.size > 15 * 1024 * 1024) throw new Error('ملف الـ PDF أكبر من 15MB');
+                return { name, kind: 'pdf', part: { inline_data: { mime_type: 'application/pdf', data: await fileToBase64(file) } } };
+            }
+            if (['csv', 'tsv', 'txt'].includes(ext) || file.type.startsWith('text/')) {
+                const text = await file.text();
+                return { name, kind: 'text', part: { text: `محتوى الملف "${name}":\n${text.slice(0, 60000)}` } };
+            }
+            if (['xlsx', 'xls'].includes(ext)) {
+                const wb = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true });
+                let out = '';
+                wb.SheetNames.forEach(n => { out += `## ${n}\n${XLSX.utils.sheet_to_csv(wb.Sheets[n])}\n`; });
+                return { name, kind: 'text', part: { text: `محتوى ملف Excel "${name}":\n${out.slice(0, 60000)}` } };
+            }
+            throw new Error(`نوع الملف غير مدعوم: ${name}`);
+        }
+
+        async function addFiles(fileList) {
+            for (const file of Array.from(fileList)) {
+                if (pendingFiles.length >= MAX_FILES) { showToast(`الحد الأقصى ${MAX_FILES} ملفات في الرسالة`, 'warn'); break; }
+                try { pendingFiles.push(await processFile(file)); }
+                catch (err) { showToast(err.message, 'danger'); }
+            }
+            renderFileChips();
+        }
+
+        function renderFileChips() {
+            $('fileChips').innerHTML = pendingFiles.map((f, i) => `
+                <span class="file-chip">
+                    ${f.preview ? `<img src="${f.preview}" alt="">` : `<i class="bi bi-file-earmark-text"></i>`}
+                    <span class="text-truncate" style="max-width:160px">${esc(f.name)}</span>
+                    <i class="bi bi-x-circle-fill x" data-i="${i}"></i>
+                </span>`).join('');
+        }
+
+        /* ================= تعليمات النموذج ================= */
+        const SYSTEM_PROMPT = `You are the built-in financial assistant of "مالي", a personal expense tracking app. The user is Egyptian; reply in friendly Egyptian Arabic, short and practical. Currency is Egyptian pounds (ج.م).
+
+You receive the user's data summary below. You must ALWAYS answer with JSON: {"reply": string, "transactions": array}.
+
+TASKS
+1) Questions / analysis / advice: answer from the data summary only, with concrete numbers. Do not invent data. Return "transactions": [].
+2) Recording: if the user describes spending or income in text, or attaches an invoice, receipt, bank statement, or a file of expenses, extract transactions into "transactions". The app saves them automatically, so include only items that are clearly real.
+
+RECORDING RULES
+- Each transaction: {"amount": number > 0, "type": "expense" | "income", "category": string, "description": string, "date": "YYYY-MM-DD"}.
+- category MUST be copied exactly from the allowed list for that type (given below). If nothing fits, use "أخرى". Never invent a new category.
+- Single invoice/receipt: group line items by the best matching category and create ONE transaction per category. The amounts must add up to the total actually paid (spread tax, delivery fees and discounts across the groups). Description = store name + short summary of the items, in Arabic.
+- Statements / spreadsheets with many rows: one transaction per row. Money going out = expense, money coming in = income. Skip header rows, opening/closing balances, and totals.
+- date: use the date on the document. If missing, use today's date. Dates must be real calendar dates.
+- If the amounts are in a currency other than EGP and no EGP total is shown, do NOT record; return an empty array and ask the user for the EGP amount.
+- If the file is unreadable, or you are not sure about the total, do NOT record; return an empty array and say what is unclear.
+- Never record the same item twice.
+- In "reply", briefly say what you recorded (count and total) or why you did not. Never claim something was recorded if "transactions" is empty.`;
+
+        const RESPONSE_SCHEMA = {
+            type: 'OBJECT',
+            properties: {
+                reply: { type: 'STRING' },
+                transactions: {
+                    type: 'ARRAY',
+                    items: {
+                        type: 'OBJECT',
+                        properties: {
+                            amount: { type: 'NUMBER' },
+                            type: { type: 'STRING', enum: ['expense', 'income'] },
+                            category: { type: 'STRING' },
+                            description: { type: 'STRING' },
+                            date: { type: 'STRING' }
+                        },
+                        required: ['amount', 'type', 'category', 'description', 'date']
+                    }
+                }
+            },
+            required: ['reply', 'transactions']
+        };
+
+        function buildContext() {
+            const now = new Date(), year = now.getFullYear(), month = now.getMonth();
+            const monthly = Array.from({ length: 12 }, () => ({ income: 0, expense: 0 }));
+            const catYear = {}, catMonth = {};
+            allData.forEach(t => {
+                const d = new Date(t.date);
+                if (isNaN(d) || d.getFullYear() !== year) return;
+                if (t.type === 'income' || t.type === 'expense') monthly[d.getMonth()][t.type] += t.amount;
+                if (t.type === 'expense') {
+                    catYear[t.category] = (catYear[t.category] || 0) + t.amount;
+                    if (d.getMonth() === month) catMonth[t.category] = (catMonth[t.category] || 0) + t.amount;
+                }
+            });
+            const monthlyTxt = monthly.map((m, i) => `${monthNames[i]}: دخل ${m.income} | صرف ${m.expense}`).join('\n');
+            const recent = allData.slice(0, 80).map(t => `${t.date} | ${t.type} | ${t.category} | ${t.amount} | ${t.description || ''}`).join('\n');
+            return `TODAY: ${todayStr()}
+ALLOWED CATEGORIES for expense: ${JSON.stringify(getCategories('expense'))}
+ALLOWED CATEGORIES for income: ${JSON.stringify(getCategories('income'))}
+
+MONTHLY TOTALS (${year}):
+${monthlyTxt}
+
+EXPENSE BY CATEGORY (this month): ${JSON.stringify(catMonth)}
+EXPENSE BY CATEGORY (${year}): ${JSON.stringify(catYear)}
+BUDGETS: ${JSON.stringify(budgets)}
+
+LAST 80 TRANSACTIONS (date | type | category | amount | description):
+${recent || '(none)'}`;
+        }
+
+        /* ================= الاتصال بـ Gemini ================= */
+        async function callGemini(userParts) {
+            const key = getKey();
+            const contents = history.slice(-MAX_HISTORY).map(h => ({ role: h.role, parts: [{ text: h.text }] }));
+            contents.push({ role: 'user', parts: userParts });
+
+            const body = {
+                systemInstruction: { parts: [{ text: SYSTEM_PROMPT + '\n\n' + buildContext() }] },
+                contents,
+                generationConfig: { responseMimeType: 'application/json', responseSchema: RESPONSE_SCHEMA, temperature: 0.2 }
+            };
+
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+                body: JSON.stringify(body)
+            });
+
+            if (!res.ok) {
+                let msg = `خطأ ${res.status}`;
+                try { msg = (await res.json()).error?.message || msg; } catch (_) {}
+                if (res.status === 429) msg = 'عدّيت حد الاستخدام المسموح، جرّب كمان شوية.';
+                if (res.status === 400 && /API key/i.test(msg)) msg = 'مفتاح الـ API غير صحيح.';
+                if (res.status === 403) msg = 'المفتاح مرفوض (تأكد من صلاحياته وقيود الدومين).';
+                throw new Error(msg);
+            }
+
+            const data = await res.json();
+            const text = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('').trim();
+            if (!text) {
+                const reason = data.promptFeedback?.blockReason || data.candidates?.[0]?.finishReason || 'رد فاضي';
+                throw new Error(`النموذج ما رجّعش رد (${reason})`);
+            }
+            try {
+                const parsed = JSON.parse(text.replace(/^```json\s*|```$/g, '').trim());
+                return { reply: String(parsed.reply || ''), transactions: Array.isArray(parsed.transactions) ? parsed.transactions : [] };
+            } catch (_) {
+                return { reply: text, transactions: [] };
+            }
+        }
+
+        /* ================= حفظ العمليات تلقائيًا ================= */
+        function normalizeTx(t) {
+            const amount = Math.round(parseFloat(t.amount) * 100) / 100;
+            const type = t.type === 'income' ? 'income' : t.type === 'expense' ? 'expense' : null;
+            if (!type || !isFinite(amount) || amount <= 0) return null;
+            const allowed = getCategories(type);
+            const category = allowed.includes(t.category) ? t.category : 'أخرى';
+            let date = String(t.date || '').trim();
+            const d = new Date(date);
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(d)) date = todayStr();
+            return { amount, type, category, description: String(t.description || '').trim().slice(0, 200), date };
+        }
+
+        async function saveTransactions(list) {
+            const clean = list.map(normalizeTx).filter(Boolean);
+            const saved = [];
+            let skipped = 0;
+            for (const tx of clean) {
+                const dup = allData.some(e => e.date === tx.date && e.type === tx.type && e.category === tx.category && Number(e.amount) === tx.amount)
+                    || saved.some(s => s.tx.date === tx.date && s.tx.type === tx.type && s.tx.category === tx.category && s.tx.amount === tx.amount && s.tx.description === tx.description);
+                if (dup) { skipped++; continue; }
+                const ref = await db.ref(`users/${currentUser.uid}/transactions`).push(tx);
+                saved.push({ key: ref.key, tx });
+            }
+            return { saved, skipped, invalid: list.length - clean.length };
+        }
+
+        function renderSavedCard(bubble, result) {
+            const { saved, skipped, invalid } = result;
+            const card = document.createElement('div');
+            card.className = 'saved-card';
+            if (saved.length) {
+                const total = saved.reduce((s, x) => s + (x.tx.type === 'expense' ? -x.tx.amount : x.tx.amount), 0);
+                card.innerHTML = `
+                    <div class="fw-bold mb-1"><i class="bi bi-check-circle-fill text-success"></i> تم تسجيل ${saved.length} عملية</div>
+                    ${saved.map(x => `
+                        <div class="row-item">
+                            <div><span class="cat">${esc(x.tx.category)}</span><div class="desc">${esc(x.tx.description || 'بدون وصف')} · ${esc(x.tx.date)}</div></div>
+                            <b class="${x.tx.type === 'income' ? 'text-success' : 'text-danger'}">${x.tx.amount.toLocaleString()} ج.م</b>
+                        </div>`).join('')}
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                        <small class="text-muted">الصافي: ${total.toLocaleString()} ج.م</small>
+                        <button class="btn btn-sm btn-outline-danger rounded-pill undo-btn"><i class="bi bi-arrow-counterclockwise"></i> تراجع</button>
+                    </div>`;
+                card.querySelector('.undo-btn').onclick = async e => {
+                    const btn = e.currentTarget;
+                    btn.disabled = true;
+                    try {
+                        await Promise.all(saved.map(x => db.ref(`users/${currentUser.uid}/transactions/${x.key}`).remove()));
+                        card.innerHTML = '<span class="text-muted"><i class="bi bi-arrow-counterclockwise"></i> تم التراجع وحذف العمليات دي.</span>';
+                        history.push({ role: 'user', text: '(تراجعت عن آخر عمليات اتسجلت، اتحذفت)' });
+                    } catch (err) { btn.disabled = false; showToast('تعذّر التراجع: ' + err.message, 'danger'); }
+                };
+            }
+            const notes = [];
+            if (skipped) notes.push(`${skipped} عملية متكررة اتخطّت (موجودة بنفس التاريخ والمبلغ والتصنيف)`);
+            if (invalid) notes.push(`${invalid} عملية اتجاهلت لأن بياناتها غير صالحة`);
+            if (notes.length) {
+                const n = document.createElement('div');
+                n.className = 'small text-muted mt-2';
+                n.textContent = notes.join(' — ');
+                card.appendChild(n);
+            }
+            if (saved.length || notes.length) { bubble.appendChild(card); scrollDown(); }
+        }
+
+        /* ================= الإرسال ================= */
+        async function send() {
+            if (busy) return;
+            const text = msgInput.value.trim();
+            if (!text && !pendingFiles.length) return;
+            if (!getKey()) { $('settingsPanel').classList.remove('hidden'); showToast('ضيف مفتاح Gemini الأول', 'warn'); return; }
+
+            busy = true; sendBtn.disabled = true;
+            const files = pendingFiles;
+            pendingFiles = []; renderFileChips();
+            msgInput.value = ''; msgInput.style.height = 'auto';
+
+            addUserBubble(text, files);
+            const typing = addTyping();
+
+            try {
+                await catsReady;
+                const parts = files.map(f => f.part);
+                parts.push({ text: text || 'سجّل المصروفات الموجودة في المرفقات على التصنيفات المتاحة.' });
+
+                const { reply, transactions } = await callGemini(parts);
+                typing.remove();
+                const bubble = addAiBubble(reply || 'تمام.');
+
+                let result = null;
+                if (transactions.length) {
+                    result = await saveTransactions(transactions);
+                    renderSavedCard(bubble, result);
+                }
+
+                const fileNote = files.length ? `[مرفقات: ${files.map(f => f.name).join(', ')}] ` : '';
+                history.push({ role: 'user', text: fileNote + text });
+                history.push({ role: 'model', text: reply + (result && result.saved.length ? ` (اتسجل ${result.saved.length} عملية)` : '') });
+            } catch (err) {
+                typing.remove();
+                addAiBubble('حصلت مشكلة: ' + err.message, true);
+            } finally {
+                busy = false; sendBtn.disabled = false;
+                msgInput.focus();
+            }
+        }
+
+        /* ================= ربط الواجهة ================= */
+        function bindUI() {
+            sendBtn.onclick = send;
+            msgInput.addEventListener('keydown', e => {
+                if (e.key === 'Enter' && !e.shiftKey && !('ontouchstart' in window)) { e.preventDefault(); send(); }
+            });
+            msgInput.addEventListener('input', () => {
+                msgInput.style.height = 'auto';
+                msgInput.style.height = Math.min(msgInput.scrollHeight, 140) + 'px';
+            });
+            msgInput.addEventListener('paste', e => {
+                const files = Array.from(e.clipboardData?.files || []);
+                if (files.length) { e.preventDefault(); addFiles(files); }
+            });
+
+            $('attachBtn').onclick = () => $('fileInput').click();
+            $('fileInput').onchange = e => { addFiles(e.target.files); e.target.value = ''; };
+            $('fileChips').addEventListener('click', e => {
+                const x = e.target.closest('.x');
+                if (!x) return;
+                pendingFiles.splice(parseInt(x.dataset.i), 1);
+                renderFileChips();
+            });
+
+            const drop = $('dropZone');
+            ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('drop-active'); }));
+            ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('drop-active'); }));
+            drop.addEventListener('drop', e => { if (e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files); });
+
+            $('quickChips').addEventListener('click', e => {
+                const chip = e.target.closest('.chip');
+                if (!chip) return;
+                msgInput.value = chip.dataset.q;
+                msgInput.focus();
+            });
+
+            $('settingsBtn').onclick = () => {
+                $('settingsPanel').classList.toggle('hidden');
+                $('apiKeyInput').value = getKey();
+            };
+            $('saveKeyBtn').onclick = () => {
+                const v = $('apiKeyInput').value.trim();
+                if (!v) { localStorage.removeItem(KEY_STORAGE); showToast('تم حذف المفتاح', 'warn'); return; }
+                localStorage.setItem(KEY_STORAGE, v);
+                $('settingsPanel').classList.add('hidden');
+                showToast('تم حفظ المفتاح', 'success');
+            };
+            $('clearChatBtn').onclick = () => {
+                history = [];
+                chatBox.innerHTML = '';
+                addAiBubble('تم مسح المحادثة. أنا جاهز! 👌');
+            };
+        }
+    </script>
+</body>
+</html>
